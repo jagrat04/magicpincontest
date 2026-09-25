@@ -637,6 +637,10 @@ def _reply_action(body: str, cta: str, rationale: str) -> dict[str, Any]:
 def respond(conversation_id: str, merchant: dict[str, Any] | None, customer: dict[str, Any] | None, message: str, turn_number: int) -> dict[str, Any]:
     """Handle one merchant/customer reply without calling a model."""
     state = conversations.setdefault(conversation_id, {"turns": [], "reply_texts": []})
+    # Proactive /v1/tick creates the conversation metadata before the first
+    # reply arrives, so complete the state shape here as well.
+    state.setdefault("turns", [])
+    state.setdefault("reply_texts", [])
     state["turns"].append({"from": "merchant", "body": message, "turn_number": turn_number})
 
     if _is_stop(message):

@@ -130,6 +130,10 @@ delivery promises, or relationship details into messages.
   - canned auto-reply → end
   - clear commitment such as “let’s do it” → action response
   - stop/hostile opt-out → end
+- A full local HTTP lifecycle initially exposed a reply-state bug after `/v1/tick`.
+  `respond()` now defensively initializes `turns` and `reply_texts` before
+  appending the first reply. This fix is currently local and still needs to be
+  committed and pushed before Render receives it.
 - `git diff --check` passed.
 
 ## Working rules
@@ -158,5 +162,7 @@ delivery promises, or relationship details into messages.
 
 ## Current Git state
 
-The repository has an `origin` remote and no commit has been created yet. All
-project files are intentionally still uncommitted for user review.
+The repository has an `origin` remote and the earlier submission commit is
+already pushed to `main`. The reply-state fix described above is currently an
+uncommitted local change. Do not commit or push it automatically; let the user
+review it first.
