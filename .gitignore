@@ -1,0 +1,43 @@
+# Python bytecode and test/build leftovers
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments and dependency folders
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+*.egg-info/
+
+# Generated challenge data. Keep the seed data in dataset/ tracked.
+dataset/expanded/
+expanded/
+
+# Local runtime output and temporary files
+*.log
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# Secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+secrets.json
+
+# Editor and operating-system files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
