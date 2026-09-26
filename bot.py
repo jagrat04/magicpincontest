@@ -33,12 +33,16 @@ conversations: dict[str, dict[str, Any]] = {}
 sent_bodies: dict[str, set[str]] = {}
 
 
-def _first_name(merchant: dict[str, Any]) -> str:
+def _first_name(merchant: dict[str, Any], category: dict[str, Any] | None = None) -> str:
     identity = merchant.get("identity") or {}
-    if identity.get("owner_first_name"):
-        return str(identity["owner_first_name"])
-    name = str(identity.get("name") or "there")
-    return name.split()[0]
+    first = str(identity.get("owner_first_name") or "")
+    if not first:
+        name = str(identity.get("name") or "there")
+        first = name.split()[0]
+    cat = str(merchant.get("category_slug") or (category.get("slug") if category else "") or "")
+    if cat == "dentists" and not first.startswith("Dr"):
+        return f"Dr. {first}"
+    return first
 
 
 def _merchant_name(merchant: dict[str, Any]) -> str:
@@ -194,7 +198,7 @@ def _customer_name(customer: dict[str, Any]) -> str:
 
 def _merchant_message(category: dict[str, Any], merchant: dict[str, Any], trigger: dict[str, Any]) -> tuple[str, str, str]:
     """Return body, CTA type, and a short human-readable rationale."""
-    first = _first_name(merchant)
+    first = _first_name(merchant, category)
     kind = str(trigger.get("kind") or "")
     payload = trigger.get("payload") or {}
     cat = str(merchant.get("category_slug") or category.get("slug") or "business")
@@ -620,6 +624,11 @@ def _is_auto_reply(message: str, state: dict[str, Any]) -> bool:
     return canned or repeats >= 2
 
 
+def _is_deferral(message: str) -> bool:
+    text = message.lower()
+    return bool(re.search(r"\b(not now|busy|later|give me time|give me some time|give me a moment|give me a min|next week|tomorrow|after some time|holding off|call back|another time|not today|in a meeting|talk later|ping later|check later)\b", text))
+
+
 def _is_stop(message: str) -> bool:
     text = message.lower().strip()
     return bool(re.search(r"\b(stop|unsubscribe|not interested|don'?t message|do not message|remove me|no thanks)\b", text))
@@ -645,6 +654,8 @@ def respond(conversation_id: str, merchant: dict[str, Any] | None, customer: dic
 
     if _is_stop(message):
         return {"action": "end", "rationale": "The recipient asked to stop; ending cleanly and not reopening the conversation."}
+    if _is_deferral(message):
+        return {"action": "wait", "wait_seconds": 1800, "rationale": "Merchant asked for time; back off 30 min"}
     if _is_auto_reply(message, state):
         return {"action": "end", "rationale": "The reply matches a canned WhatsApp acknowledgement; no further nudge is sent."}
 
@@ -680,7 +691,9 @@ def _handle_context(data: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     scope = data.get("scope")
     context_id = data.get("context_id")
     version = data.get("version")
-    if scope not in VALID_SCOPES or not context_id or not isinstance(version, int) or not isinstance(data.get("payload"), dict):
+    if scope not in VALID_SCOPES:
+        return 400, {"accepted": False, "reason": "invalid_scope", "details": f"Scope must be one of {sorted(VALID_SCOPES)}"}
+    if not context_id or not isinstance(version, int) or not isinstance(data.get("payload"), dict):
         return 400, {"accepted": False, "reason": "invalid_context"}
     key = (scope, str(context_id))
     current = contexts.get(key)
@@ -715,12 +728,16 @@ class Handler(BaseHTTPRequestHandler):
             self._write(200, {"status": "ok", "uptime_seconds": int(time.time() - STARTED_AT), "contexts_loaded": counts})
             return
         if path == "/v1/metadata":
+            member_env = os.getenv("VERA_TEAM_MEMBERS") or os.getenv("VERA_TEAM_MEMBER")
+            members = [m.strip() for m in member_env.split(",") if m.strip()] if member_env else ["Jagrat Singh"]
             self._write(200, {
                 "team_name": os.getenv("VERA_TEAM_NAME", "Vera Local"),
-                "team_members": [os.getenv("VERA_TEAM_MEMBER", "")],
-                "model": "deterministic-context-composer",
+                "team_members": members,
+                "model": os.getenv("VERA_MODEL", "deterministic-context-composer"),
                 "approach": "category-aware rules with stateful reply routing",
+                "contact_email": os.getenv("VERA_CONTACT_EMAIL", "jagratsingh9899@gmail.com"),
                 "version": "1.0.0",
+                "submitted_at": datetime.fromtimestamp(STARTED_AT, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
             })
             return
         self._write(404, {"detail": "not found"})
@@ -765,7 +782,7 @@ class Handler(BaseHTTPRequestHandler):
                     "send_as": result["send_as"],
                     "trigger_id": trigger_id,
                     "template_name": f"vera_{trigger.get('kind', 'update')}_v1",
-                    "template_params": [_first_name(merchant), trigger.get("kind", "update")],
+                    "template_params": [_first_name(merchant, category), trigger.get("kind", "update")],
                     **result,
                 })
             self._write(200, {"actions": actions[:20]})

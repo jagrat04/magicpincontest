@@ -130,10 +130,10 @@ delivery promises, or relationship details into messages.
   - canned auto-reply → end
   - clear commitment such as “let’s do it” → action response
   - stop/hostile opt-out → end
-- A full local HTTP lifecycle initially exposed a reply-state bug after `/v1/tick`.
-  `respond()` now defensively initializes `turns` and `reply_texts` before
-  appending the first reply. This fix is currently local and still needs to be
-  committed and pushed before Render receives it.
+  - deferral signals (“not now”, “busy”, “later”) → wait (1800s backoff)
+- Context scope validation rejects unknown scopes with `invalid_scope` (HTTP 400).
+- Dentist category voice enforced: salutations use the `Dr.` prefix (`Dr. Meera`, `Dr. Bharat`).
+- Metadata endpoint returns valid team members, contact email, and submitted timestamp.
 - `git diff --check` passed.
 
 ## Working rules
@@ -152,17 +152,11 @@ delivery promises, or relationship details into messages.
 
 ## Recommended next steps
 
-1. Start the bot locally with `python bot.py`.
-2. Exercise the HTTP endpoints with the supplied `judge_simulator.py` after
-   configuring its local bot URL and judge provider.
-3. Review the 30 messages for tone and challenge fit before submission.
-4. Add deployment-specific metadata and a public URL only when the user is
-   ready to deploy.
-5. Let the user review the final diff and commit it themselves.
+1. Start the bot locally with `python bot.py` or verify endpoints.
+2. Review the diff using `git diff`.
+3. When ready, commit and push to deploy the updates to Render.
 
 ## Current Git state
 
-The repository has an `origin` remote and the earlier submission commit is
-already pushed to `main`. The reply-state fix described above is currently an
-uncommitted local change. Do not commit or push it automatically; let the user
-review it first.
+Repository is cloned locally with uncommitted improvements ready for review.
+As instructed by the user, changes have NOT been pushed to remote.
